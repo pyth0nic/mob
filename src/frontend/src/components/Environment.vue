@@ -71,8 +71,8 @@ const { uniqueNamesGenerator, names, adjectives, colors } = require('unique-name
 class Food {
     constructor(food, sketch) {
         this.sketch = sketch;
-        this.x = food.x * 100 + 25;
-        this.y = food.y * 100 + 25;
+        this.x = (food.x * 50) + 25;
+        this.y = (food.y * 50) + 25;
         this.id = food.id;
     }
 
@@ -84,7 +84,7 @@ class Food {
     display(sketch) {
       sketch.fill("yellow")
       sketch.strokeWeight(2);
-      sketch.ellipse(this.x, this.y, 10, 10);
+      sketch.ellipse(this.x, this.y, 5, 5);
     }
 }
 
@@ -93,10 +93,11 @@ class Agent {
         this.sketch = sketch;
         this.id = agent.id;
         this.alive = agent.alive;
-        this.x = (agent.x * 100) + 25;
-        this.y = (agent.y * 100) + 25;
+        this.x = (agent.x * 50) + 25;
+        this.y = (agent.y * 50) + 25;
         this.health = agent.health;
         this.namesMap = namesMap;
+        this.category = agent.category;
         this.generateDisplayName();
     }
   
@@ -119,10 +120,14 @@ class Agent {
     if (this.health == 0) {
       sketch.text(this.health, this.x, this.y)
       return;  
-    } 
-    sketch.fill("blue");
+    }
+    if (this.category == 1) {
+      sketch.fill("blue");
+    } else {
+      sketch.fill("black");
+    }
     sketch.strokeWeight(2);
-    let radius = Math.max(5, this.health);
+    let radius = Math.max(10, this.health * 5);
     sketch.ellipse(this.x, this.y, radius, radius);
     sketch.fill("black");
     sketch.text(this.namesMap[this.id] + "::" + this.health, this.x, this.y)
@@ -150,7 +155,7 @@ class Cycle {
 
   run(sketch) {
     if (this.foods && this.foods.length > 0) {
-        for (let i = this.foods.length-1; i >= 0; i--) {
+        for (let i = 0; i < this.foods.length; i++) {
           let food = new Food(this.foods[i], sketch);
           food.run(sketch);
         }
@@ -198,7 +203,7 @@ export default {
     },
     setup(sketch) {
       sketch.noLoop();
-      sketch.createCanvas(650, 550);
+      sketch.createCanvas(575, 525);
       this.cycleSocket = new Cycles(this.cycles);
       this.sketch = sketch;
     },
