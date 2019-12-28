@@ -10,10 +10,7 @@ app = Sanic()
 @app.websocket('/environment')
 async def environment(request, ws):
     while True:
-        data = 'hello!'
-        print('Sending: ' + data)
         await run(ws)
-        await ws.send(json.dumps(AgentState("",True, 1,1,10).__dict__))
         data = await ws.recv()
         print('Received: ' + data)
 

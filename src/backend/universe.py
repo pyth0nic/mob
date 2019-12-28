@@ -191,9 +191,10 @@ class Environment(object):
 
 # information of each cycle should be sent over socket
 async def run(ws):
-    ray.init()
+    if not ray.is_initialized():
+        ray.init()
     environment = Environment.remote(5, 5, 5, 20, 10, 1)
     for i in range(50):
         agents, foods = ray.get(environment.run.remote(i))
         await ws.send(json.dumps(Cycle(i, agents, foods), default=Cycle.toJSON))
-    ray.shutdown()
+    #ray.shutdown()
