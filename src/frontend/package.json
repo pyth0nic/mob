@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "core-js": "^3.4.3",
+    "unique-names-generator": "^4.1.1",
     "vue": "^2.6.10",
     "vue-p5": "^0.8.3",
     "vuex": "^3.1.2"

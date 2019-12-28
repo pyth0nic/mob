@@ -22,11 +22,11 @@ class Cycle:
         return result
 
     def buildAgentState(self, agent):
-        return AgentState(agent.name, agent.alive(), agent.x, agent.y, agent.health)
+        return AgentState(agent.id, agent.alive(), agent.x, agent.y, agent.health)
 
 class AgentState:
-    def __init__(self, name, alive, x, y, health):
-        self.name = name
+    def __init__(self, uuid, alive, x, y, health):
+        self.id = uuid
         self.alive = alive
         self.x = x
         self.y = y
@@ -41,16 +41,16 @@ class Food:
         self.type = "Food"
 
 class Agent(object):
-    def __init__(self, name, environment):
+    def __init__(self, environment):
         #self.size = 1
         self.environment = environment
         
         # should check whether there are surrounding agents by some threshold
-        self.name = name
+        self.id = uuid.uuid4().hex
         self.x = random.randint(0, environment.size)
         self.y = random.randint(0, environment.size)
         self.health = 10
-        self.state = AgentState(self.name, self.alive(), self.x, self.y, self.health)
+        self.state = AgentState(self.id, self.alive(), self.x, self.y, self.health)
         self.foods = []
         self.logger = logging.getLogger(__name__)
         self.type = "Agent"
@@ -63,7 +63,7 @@ class Agent(object):
         foods, agents = self.see()
         self.move(foods)
         self.health = self.health - self.environment.decayRate
-        self.state = AgentState(self.name, self.alive(), self.x, self.y, self.health)
+        self.state = AgentState(self.id, self.alive(), self.x, self.y, self.health)
         return self.state
 
     def size(self):
@@ -144,7 +144,7 @@ class Environment(object):
         self.decayRate = decayRate
         self.foods = []
         self.agents = []
-        self.agents = [Agent(uuid.uuid4().hex, self) for i in range(self.numberOfAgents)]
+        self.agents = [Agent(self) for i in range(self.numberOfAgents)]
         self.logger = logging.getLogger(__name__)
         self.type = "Environment"
 
