@@ -1,18 +1,25 @@
 from sanic import Sanic
 from sanic.response import json
 from sanic.websocket import WebSocketProtocol
-from universe import Environment, AgentState, Agent, Food, run
+from os.path import dirname, abspath, join
 import json
 
-app = Sanic()
+from schema.simulation import SimulationRequestV1, FoodV1, AgentV1, CycleV1, ToDTO
+from backend.messaging.client import SimulationClient
+import ray
 
-# for each iteration need agent positions and food positions
+_CURDIR = dirname(abspath(__file__))
+
+app = Sanic()
+app.static('/', join(_CURDIR, './dist'))
+
 @app.websocket('/environment')
 async def environment(request, ws):
-    while True:
-        await run(ws)
-        data = await ws.recv()
-        print('Received: ' + data)
+    await SimulationClient.run(request, ws)
+    del sim
+
+def start():
+    app.run(host="0.0.0.0", port=3000, protocol=WebSocketProtocol, debug=True)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, protocol=WebSocketProtocol)
+    app.run(host="0.0.0.0", port=8080, protocol=WebSocketProtocol, auto_reload=True)

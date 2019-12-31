@@ -15,9 +15,9 @@
         </vue-p5>
       </div>
       <div class="side-bar">
-        <div v-if="cycles.length > 0 && currentAgents.length > 0">
-          <div v-for="agent in currentAgents" v-bind:key="agent.id">
-            <p>{{namesMap[agent.id] + " - " + agent.health }}</p>
+        <div v-if="cycles.length > 0 && orderedAgents.length > 0">
+          <div v-for="agent in orderedAgents" v-bind:key="agent.health">
+            <p>{{namesMap[agent.agentId] + " - " + agent.health }}</p>
           </div>
         </div>
       </div>
@@ -66,6 +66,7 @@ a {
 </style>
 
 <script>
+import _ from 'lodash';
 const { uniqueNamesGenerator, names, adjectives, colors } = require('unique-names-generator');
 
 class Food {
@@ -73,7 +74,7 @@ class Food {
         this.sketch = sketch;
         this.x = (food.x * 50) + 25;
         this.y = (food.y * 50) + 25;
-        this.id = food.id;
+        this.foodId = food.foodId;
     }
 
     run(sketch) {
@@ -91,7 +92,7 @@ class Food {
 class Agent {
   constructor(agent, sketch, namesMap) {
         this.sketch = sketch;
-        this.id = agent.id;
+        this.agentId = agent.agentId;
         this.alive = agent.alive;
         this.x = (agent.x * 50) + 25;
         this.y = (agent.y * 50) + 25;
@@ -102,8 +103,8 @@ class Agent {
     }
   
   generateDisplayName(namesMap) {
-    if (!this.namesMap[this.id]) {
-          this.namesMap[this.id] = uniqueNamesGenerator({
+    if (!this.namesMap[this.agentId]) {
+          this.namesMap[this.agentId] = uniqueNamesGenerator({
             dictionaries: [adjectives, colors],
             separator: '-',
             length: 2,
@@ -128,9 +129,9 @@ class Agent {
     }
     sketch.strokeWeight(2);
     let radius = Math.max(10, this.health * 5);
-    sketch.ellipse(this.x, this.y, radius, radius);
+    sketch.ellipse(this.x, this.y, 10, 10);
     sketch.fill("black");
-    sketch.text(this.namesMap[this.id] + "::" + this.health, this.x, this.y)
+    sketch.text(this.namesMap[this.agentId] + "::" + this.health, this.x, this.y)
   }
 
   // Is the particle still useful?
@@ -189,7 +190,9 @@ export default {
     namesMap: {}
   }),
   computed: {
-
+    orderedAgents: function () {
+      return _.reverse(_.sortBy(this.currentAgents, ["health"]));
+    }
   },
   methods: {
     mouseClicked(sketch) {

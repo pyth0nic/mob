@@ -4,9 +4,7 @@ import uuid
 from statistics import mean
 import logging
 import json
-
 logger = logging.getLogger(__name__)
-
 
 def distance(a, b):
     d = ((b.x-a.x)**2 + (b.y-a.y)**2)**(1/2)
@@ -15,7 +13,7 @@ def distance(a, b):
 class Cycle:
     def __init__(self, cycle, agents, foods):
         self.cycle = cycle
-        self.agents = list(map(self.buildAgentState, agents))
+        self.agents = agents
         self.foods = foods
         self.type = "Cycle"
 
@@ -27,11 +25,11 @@ class Cycle:
         return result
 
     def buildAgentState(self, agent):
-        return AgentState(agent.id, agent.alive(), agent.x, agent.y, agent.health, agent.category)
+        return AgentState(agent.agentId, agent.alive(), agent.x, agent.y, agent.health, agent.category)
 
 class AgentState:
     def __init__(self, uuid, alive, x, y, health, category):
-        self.id = uuid
+        self.stateId = uuid
         self.alive = alive
         self.x = x
         self.y = y
@@ -43,28 +41,32 @@ class Food:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.id = uuid.uuid4().hex
+        self.foodId = uuid.uuid4().hex
         self.type = "Food"
-        
+
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y      
 
 class Agent(object):
-    def __init__(self, environment):
-        #self.size = 1
+    def __init__(self, environment, health):
         self.environment = environment
         
         # should check whether there are surrounding agents by some threshold
-        self.id = uuid.uuid4().hex
+        self.agentId = uuid.uuid4().hex
         self.x = random.randint(0, environment.size)
         self.y = random.randint(0, environment.size)
-        self.health = 10
+        self.health = health
         self.foods = []
         self.logger = logging.getLogger(__name__)
         self.category = random.choice([1,2,3])
-        self.state = AgentState(self.id, self.alive(), self.x, self.y, self.health, self.category)
+        self.state = AgentState(self.agentId, self.alive(), self.x, self.y, self.health, self.category)
         self.type = "Agent"
         self.route = []
         self.seen = []
 
+    moveOptions = [(1,0), (0,1), (-1,0),(0,-1),(2, -1), (-1, 2), (-2, 1), (1, -2)]         
 
     # each step should perform various combinations of each behaviour
     def step(self, foods):
@@ -72,10 +74,9 @@ class Agent(object):
             return self.foods
 
         self.environment.foods = foods
-        self.move()
-        self.eat()
+        self.moveAndAction()
         self.health = self.health - self.environment.decayRate
-        self.state = AgentState(self.id, self.alive(), self.x, self.y, self.health, self.category)
+        self.state = AgentState(self.agentId, self.alive(), self.x, self.y, self.health, self.category)
         return self.foods
 
     def size(self):
@@ -86,12 +87,12 @@ class Agent(object):
 
     # Actions, should take a vector, actor accelerates in that direction
     # degrees are made up from combinations of [up right, down right, up left, down left]
-    def move(self):
+    def moveAndAction(self):
         # need to avoid agents that are larger
         # need to eat the closest food
         # question, build a policy engine and router
         # use reinforcement learning to build policies?
-        def travel(x, y):
+        def teleport(x, y):
             if x < 0:
                 x = self.environment.width
             if x > self.environment.width:
@@ -105,17 +106,28 @@ class Agent(object):
         def findFoodAndDistance():
             foods, agents = self.see()
             foods = list((sorted(foods, key=lambda food: abs(distance(self, food)))))
-            food = foods[1]
+            if len(foods) == 0:
+                return None, 0
+            food = foods[0]
             d = abs(int(distance(self, food)))
             return food, d
 
+        def randomMove():
+            # move one space in a random direction
+            rl = random.choice(self.moveOptions)
+            self.x = self.x + rl[0]
+            self.y = self.y + rl[0]
+            x, y = teleport(self.x, self.y)
+            self.x = x
+            self.y = y
+
         def route():
-            self.eat()
             food, d = findFoodAndDistance()
-            if d == 0:
-                self.logger.warning("NOPE ROUTE HERE %d %d" % (d, self.health))
+            if not food:
+                randomMove()
                 self.eat();
-                self.logger.warning("HEALTH %d " % self.health)
+            if d == 0:
+                self.eat();
                 food, d = findFoodAndDistance()
 
             x = self.x
@@ -126,14 +138,11 @@ class Agent(object):
                 x = x + xs
                 ys = sign(food.y, y)
                 y = y + ys
-                #tx, ty = travel(x, y)
-                self.logger.warning("%d %d" % (x, y))
-                #if (tx == x & ty == y):
                 self.route.append((xs, ys))
 
             self.logger.warning("ROUTE LENGTH %d" % len(self.route))
 
-        def routeTraverse():
+        def traverseRoute():
             if len(self.route) > 0:
                 point = self.route.pop()
                 self.x = self.x + point[0]
@@ -141,41 +150,37 @@ class Agent(object):
                 self.eat()
 
         if (self.category == 1):
-            # move one space in a random direction
-            rl = random.choice([(1,0), (0,1), (-1,0),(0,-1),(2, -1), (-1, 2), (-2, 1), (1, -2)])
-            self.x = self.x + rl[0]
-            self.y = self.y + rl[0]
-            x, y = travel(self.x, self.y)
-            self.x = x
-            self.y = y
-
-        elif self.category == 2 | self.category == 3:
+            randomMove()
+            self.eat()
+        elif self.category == 2:
                 food, d = findFoodAndDistance()
-                if (len(self.route) == 0):
+                if len(self.route) == 0:
                     route()
-                routeTraverse()
-            
-        self.eat()
+                traverseRoute()
+        elif self.category == 3:
+                food, d = findFoodAndDistance()
+                if len(self.route) == 0:
+                    route()
+                traverseRoute()
+
+    def split(self):
+        pass
 
     # senses
     # get all objects that surround the agent
     # with each move the agent should update the in view list
     def see(self):
         currentEnvironment = self.environment
-        foods = list(filter(lambda food: int(distance(self, food)) <= currentEnvironment.visibility, currentEnvironment.foods))
-        agents = list(filter(lambda agent: currentEnvironment.agents, currentEnvironment.agents))
-        # see food diet, if I can see it, I can eat it
+        foods = list(filter(lambda food: int(distance(self, food)) <= currentEnvironment.agentSight, currentEnvironment.foods))
+        agents = list(filter(lambda agent: int(distance(self, agent)) <= currentEnvironment.agentSight, currentEnvironment.agents))
         self.seen = foods
         return foods, agents
 
     # Rules/behaviours
-    # each move should check whether rules
-    # rules need to accept the environment 
     def eat(self):
         currentEnvironment = self.environment
         onFoods = [food for food in self.seen if (self.x == food.x) & (self.y == food.y)]
         if len(onFoods) == 0:
-            #self.logger.warning("NAH", self.x, self.y)
             return self.foods
 
         for onFood in onFoods:
@@ -183,29 +188,26 @@ class Agent(object):
             self.foods.append(onFood)
         return self.foods
 
-# each AgarAgent needs access to the environment
 @ray.remote
 class Environment(object):
-    def __init__(self, size, agentVisibility, foodSpawnRate, numberOfAgents, decayRate):
-        self.size = size
-        self.width = size
-        self.height = size
+    def __init__(self, request):
+        self._id = request.simId
+        self.size = request.environmentSize
+        self.width = request.environmentSize
+        self.height = request.environmentSize
 
         # constants
-        # minimum size difference an agent needs to be to eat another agent
-        self.edibleThreshold = 5
-        # radius that agents can see other objects
-        self.visibility = agentVisibility
-        # number of foods spawned each cycle
-        self.foodSpawnRate = foodSpawnRate
-        # number of starting agents
-        self.numberOfAgents = numberOfAgents
-
-        self.decayRate = decayRate
+        self.edibleThreshold = request.edibleThreshold
+        self.agentSight = request.agentSight
+        self.foodSpawnRate = request.foodSpawnRate
+        self.numberOfAgents = request.startingAgentCount
+        self.agentStartingHealth = request.agentStartingHealth
+        self.decayRate = request.decayRate
         self.lastFoods = []
         self.foods = []
         self.agents = []
-        self.agents = [Agent(self) for i in range(self.numberOfAgents)]
+        self.agents = [Agent(self, self.agentStartingHealth) for i in range(self.numberOfAgents)]
+
         self.logger = logging.getLogger(__name__)
         self.type = "Environment"
 
@@ -222,7 +224,7 @@ class Environment(object):
         self.logger.warning("=== FOODS %d ===" % len(self.foods))
         for agent in self.agents:
             foods = agent.step(self.foods)
-            self.foods = list(filter(lambda f: f.id not in list(map(lambda f1: f1.id, foods)), self.foods))
+            self.foods = list(filter(lambda f: f.foodId not in list(map(lambda f1: f1.foodId, foods)), self.foods))
         
         self.printAlive()
         self.logger.warning("=== FOODS %d ===" % len(self.foods))
@@ -255,27 +257,14 @@ class Environment(object):
             else:
                 tryCount += 1
         
+class Simulator:
+    def __init__(self, request):
+        self.logger = logging.getLogger(__name__)
+        if not ray.is_initialized():
+            ray.init()
+        self.environment = Environment.remote(request)
 
-# information of each cycle should be sent over socket
-async def run(ws):
-    logger = logging.getLogger(__name__)
-    if not ray.is_initialized():
-        ray.init()
-    environment = Environment.remote(10, 20, 10, 5, 1)
-    i = 0
-    for i in range(1000):
-        agents, foods = ray.get(environment.run.remote(i))
-        if len(list(filter(lambda x : x.alive(), agents))) > 0 :
-            await ws.send(json.dumps(Cycle(i, agents, foods), default=Cycle.toJSON))
-        else:
-            logger.warning("=== CYCLES COMPLETED %d ===" % i)
-
-if __name__ == "__main__":
-    if not ray.is_initialized():
-        ray.init()
-    environment = Environment(10, 20, 20, 1, 1)
-    for i in range(30):
-        agents, foods = environment.run(i)
-        if len(list(filter(lambda x : x.alive(), agents))) == 0:
-            break
-    #ray.shutdown()
+    def step(self, i):
+        agents, foods = ray.get(self.environment.run.remote(i))
+        if len(list(filter(lambda x : x.alive(), agents))) > 0:
+            return Cycle(i, agents, foods)

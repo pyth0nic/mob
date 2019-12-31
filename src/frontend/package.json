@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "core-js": "^3.4.3",
+    "lodash": "^4.17.15",
     "unique-names-generator": "^4.1.1",
     "vue": "^2.6.10",
     "vue-p5": "^0.8.3",
