@@ -32,10 +32,8 @@ class MessageClient:
         producer = self.client.create_producer('simulation-result', schema=JsonSchema(CycleV1))
         for i in range(request.cycles):
             cycle = sim.step(i)
-            print(cycle)
             cyclev1 = ToDTO.toCycle(cycle)
-            print("SENGING")
-            producer.send(cyclev1)
+            producer.send(cyclev1, partition_key=request.simId, sequence_id=i)
 
     # subscribe to a simulation request topic
     def listen(self):
